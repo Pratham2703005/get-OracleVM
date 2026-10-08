@@ -51,7 +51,11 @@ public_ip() {
 
 # Count every failed launch attempt by error code in keep-going.json (counts only, no error text).
 record_error() {
-  local py; py="$(command -v python3 || command -v python || true)"
+  local py="" c
+  for c in python3 python; do
+    # skip missing interpreters and the Windows Store stub (exists but fails)
+    if command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1; then py="$c"; break; fi
+  done
   if [ -z "$py" ]; then echo "WARN: python not found, not recording error count" >&2; return 0; fi
   printf '%s' "$1" | "$py" "$(dirname "${BASH_SOURCE[0]}")/record_error.py" "${KEEP_GOING_FILE:-keep-going.json}" \
     || echo "WARN: could not update keep-going.json" >&2
@@ -106,7 +110,9 @@ echo "Image: $IMAGE"
 # 3. Launch with retries
 for ((i = 1; i <= MAX_ATTEMPTS; i++)); do
   echo "Attempt $i/$MAX_ATTEMPTS..."
-  if out="$(oci compute instance launch \
+  # --no-retry: the CLI's own retry/backoff can hang one call for minutes; this loop does the retrying.
+  rc=0
+  out="$(timeout 60 oci --no-retry compute instance launch \
       --availability-domain "$AD" \
       --compartment-id "$OCI_COMPARTMENT_OCID" \
       --subnet-id "$OCI_SUBNET_OCID" \
@@ -116,7 +122,8 @@ for ((i = 1; i <= MAX_ATTEMPTS; i++)); do
       --display-name "$NAME" \
       --assign-public-ip true \
       --ssh-authorized-keys-file "$WORK/ssh.pub" \
-      --query 'data.id' --raw-output 2>&1)"; then
+      --query 'data.id' --raw-output 2>&1)" || rc=$?
+  if [ "$rc" -eq 0 ]; then
     id="$(clean "$out")"
     echo "Launched $id, waiting for RUNNING..."
     oci compute instance get --instance-id "$id" --wait-for-state RUNNING --max-wait-seconds 600 >/dev/null
@@ -124,9 +131,10 @@ for ((i = 1; i <= MAX_ATTEMPTS; i++)); do
     report "$id"
     exit 0
   fi
+  if [ "$rc" -eq 124 ]; then out='"code": "ClientTimeout"'; fi
   record_error "$out"
-  if grep -qiE "out of host capacity|TooManyRequests" <<<"$out"; then
-    echo "Out of host capacity (or rate limited)."
+  if grep -qiE "out of host capacity|TooManyRequests|ClientTimeout" <<<"$out"; then
+    echo "No capacity, rate limited or timed out (rc=$rc)."
     if [ "$i" -lt "$MAX_ATTEMPTS" ]; then sleep "$RETRY_INTERVAL"; fi
   else
     echo "ERROR: launch failed:" >&2
