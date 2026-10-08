@@ -1,0 +1,9 @@
+{
+  "displayName": "jobfeed-db",
+  "shape": "VM.Standard.A1.Flex",
+  "ocpus": 2,
+  "memoryGb": 12,
+  "bootVolumeGb": 100,
+  "region": "ap-mumbai-1",
+  "createdAt": "2026-10-08T20:32:49Z"
+}
