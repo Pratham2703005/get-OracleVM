@@ -1,8 +1,9 @@
 {
   "errors": {
-    "OutOfHostCapacity": 4
+    "OutOfHostCapacity": 5,
+    "TooManyRequests": 4
   },
-  "totalFailedAttempts": 4,
-  "lastError": "OutOfHostCapacity",
-  "lastAttemptAt": "2026-10-08T09:49:21Z"
+  "totalFailedAttempts": 9,
+  "lastError": "TooManyRequests",
+  "lastAttemptAt": "2026-10-08T10:50:15Z"
 }
