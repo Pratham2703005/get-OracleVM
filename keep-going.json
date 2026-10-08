@@ -1,0 +1,8 @@
+{
+  "errors": {
+    "OutOfHostCapacity": 4
+  },
+  "totalFailedAttempts": 4,
+  "lastError": "OutOfHostCapacity",
+  "lastAttemptAt": "2026-10-08T09:49:21Z"
+}
